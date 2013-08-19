@@ -1,0 +1,5 @@
+[ "edown": {:git, "git://github.com/esl/edown.git", "1f6954ce8f313139385110f68c18c17adb2723f8", []},
+  "hanoidb": {:git, "git://github.com/josephwecker/hanoidb.git", "27936ecafbca285204082eb5bd39b9eea94752ea", [{:branch, "minimal"}]},
+  "lz4": {:git, "git://github.com/krestenkrab/erlang-lz4.git", "5fd90ca1e2345bdc359ee43d958da87fafb4fd78", [{:branch, "master"}]},
+  "plain_fsm": {:git, "git://github.com/josephwecker/plain_fsm", "882189a425640182aa539bc4a5fa2329f8ec3a65", [{:branch, "master"}]},
+  "snappy": {:git, "git://github.com/josephwecker/snappy-erlang-nif.git", "0205d28a94992b18c5c3ce33df5eaae151fc320a", [{:branch, "master"}]} ]
