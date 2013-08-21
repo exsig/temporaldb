@@ -1,3 +1,3 @@
-# Temporaldb
+# TemporalDB
 
-** TODO: Add description **
+Timeseries oriented data with live streaming and playback capabilities.
