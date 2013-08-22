@@ -53,8 +53,9 @@ defmodule TemporalDB do
   end
 
   def info(srv),                                 do: :gen_server.call(srv, :info)
-  def put(srv, ts, record) when is_list(record), do: :gen_server.call(srv, {:put, microtime(ts), record})
-  def stream_from(srv, ts),                      do: stream_from(srv, {:stream_from, microtime(ts)})
+  def put(srv, ts, record) when is_list(record), do: :gen_server.cast(srv, {:put, microtime(ts), record})
+  def stream_from(srv, ts),                      do: :gen_server.call(srv, {:stream_from, microtime(ts)})
+
 
 
   @doc "64-bit (native-endian) binary representation of the microtime, from various formats"
@@ -65,42 +66,71 @@ defmodule TemporalDB do
   def microtime(ts) when is_integer(ts),                 do: <<ts::64>>
   def microtime(ts) when is_float(ts) and ts < 1.0e10,   do: <<(round(ts*1_000_000))::64>>
   def microtime(ts) when is_float(ts),                   do: <<(round(ts))::64>>
+
+  #------------------------ General genserver Implementation -----------------------------------------------------------
+  defmodule GenServer do
+    use Elixir.GenServer.Behaviour
+
+    @default_rootdir      "/srv/exs/streams"
+
+    def init({name,opts}) do
+      root_dir = opts |> Dict.get(:data_root_dir, @default_rootdir)
+      :ok = File.mkdir_p(root_dir)
+      dir = "#{root_dir}/#{name}"
+      canonical = "#{node()}:#{dir}" |> Kernel.binary_to_atom
+      {:ok, db} = case :hanoidb.open_link({:global,canonical}, dir |> String.to_char_list!,
+                                          compress:       :snappy,
+                                          merge_strategy: :fast,
+                                          sync_strategy:  {:seconds, 15}) do
+                    {:ok, server} -> {:ok, server}
+                    {:error, {:already_started, server}} -> {:ok, server}
+                  end
+      {:ok, canonical: canonical, db: db}
+    end
+
+    def handle_call(:info, _from, state), do: {:reply, state, state}
+    #def handle_call({:stream_from, ts}, _, state=[canonical: _, db: db]), do: {:reply, thestream(db,ts), state}
+    def handle_call({:stream_from, ts}, _, state), do: {:reply, :gen_server.start_link(TemporalDB.Stream.GenServer, {ts,state}, []), state}
+    def handle_cast({:put, ts, record}, _, [canonical: _, db: db]=state) do
+      :ok = :hanoidb.put(db, ts, term_to_binary(record))
+      {:noreply, state}
+    end
+
+
+    # TODO: just return a state and some functions that can act on that state
+
+    #defp thestream(db,ts) do
+    #  Stream.iterate({db,ts,[{1,2},{3,4},{5,6}],nil}, &genresults/1)
+    #  |> Stream.map(fn({_d,_t,_r,v})->v end)
+    #  |> Stream.drop(1)
+    #end
+
+    ##defp genresults({db,ts,[],nil}) do
+    #  # query next several based on ts
+    #  #throw({:stream_lazy,nil})
+    ##end
+
+    #defp genresults({db,ts,[],{_, last_k, last_v}}) do
+    #  # query next several based on last_ts
+    #  {db,ts,[],{:timeout, last_k, last_v}}
+    #end
+
+    #defp genresults({db,ts,[{curr_ts,curr_val}|tail],_last_kv}), do: {db,curr_ts,tail,{:record, curr_ts, curr_val}}
+  end
+
+  defmodule Stream do
+    def next(str, timeout // :infinity), do: :gen_server.call(str, {:next, timeout})
+
+    defmodule GenServer do
+      use Elixir.GenServer.Behaviour
+      @historical_at_a_time 10
+      defrecordp :stream_state, db: nil, queue: [], next_ts: <<>>, last_res: nil
+      def init({ts,[canonical: _, db: db]}), do: {:ok, stream_state(db: db, next_ts: ts)}
+
+      def handle_call({:next, timeout}, _from_, state) do
+
+        {:reply, :nyi, state}
+      end
+    end
+  end
 end
-
-
-#----------------------- SERVER IMPLEMENTATION ------------------------------------------------------------------------
-
-defmodule TemporalDB.GenServer do
-  use GenServer.Behaviour
-
-  @default_rootdir "/srv/exs/streams"
-
-  def init({name,opts}) do
-    root_dir = opts |> Dict.get(:data_root_dir, @default_rootdir)
-    :ok = File.mkdir_p(root_dir)
-    dir = "#{root_dir}/#{name}"
-    canonical = "#{node()}:#{dir}" |> Kernel.binary_to_atom
-    {:ok, db} = case :hanoidb.open_link({:global,canonical}, dir |> String.to_char_list!,
-                                        compress:       :snappy,
-                                        merge_strategy: :fast,
-                                        sync_strategy:  {:seconds, 15}) do
-                  {:ok, server} -> {:ok, server}
-                  {:error, {:already_started, server}} -> {:ok, server}
-                end
-    {:ok, canonical: canonical, db: db}
-  end
-
-  def handle_call(:info, _from, state), do: {:reply, state, state}
-  def handle_call({:put, ts, record}, _, state) do
-
-    {:reply, :in_progress, state}
-  end
-
-  def handle_call({:stream_from, ts}, _, state) do
-
-    {:reply, :in_progress, state}
-  end
-
-  def handle_call(_,_from,state), do: {:reply, :nyi, state}
-end
-
