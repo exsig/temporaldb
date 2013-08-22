@@ -31,32 +31,49 @@ defmodule TemporalDB do
 
   """
 
-  @default_rootdir "/srv/exs/streams"
-
-  use GenServer.Behaviour
 
   def open_registered(name, options // []) do
     {start_opts, options} = options |> Dict.pop :start_opts,[]
-    :gen_server.start({:local,name}, __MODULE__, {name, options}, start_opts)
+    :gen_server.start({:local,name}, TemporalDB.GenServer, {name, options}, start_opts)
   end
 
   def open_registered_link(name, options // []) do
     {start_opts, options} = options |> Dict.pop :start_opts,[]
-    :gen_server.start_link({:local,name}, __MODULE__, {name, options}, start_opts)
+    :gen_server.start_link({:local,name}, TemporalDB.GenServer, {name, options}, start_opts)
   end
 
   def open(name, options // []) do
     {start_opts, options} = options |> Dict.pop :start_opts,[]
-    :gen_server.start(__MODULE__, {name, options}, start_opts)
+    :gen_server.start(TemporalDB.GenServer, {name, options}, start_opts)
   end
 
   def open_link(name, options // []) do
     {start_opts, options} = options |> Dict.pop :start_opts,[]
-    :gen_server.start_link(__MODULE__, {name, options}, start_opts)
+    :gen_server.start_link(TemporalDB.GenServer, {name, options}, start_opts)
   end
 
-  def info(srv), do: :gen_server.call(srv,:info)
+  def info(srv),                                 do: :gen_server.call(srv, :info)
+  def put(srv, ts, record) when is_list(record), do: :gen_server.call(srv, {:put, microtime(ts), record})
+  def stream_from(srv, ts),                      do: stream_from(srv, {:stream_from, microtime(ts)})
 
+
+  @doc "64-bit (native-endian) binary representation of the microtime, from various formats"
+  def microtime({mega, secs, micro}),                    do: <<(mega * 1_000_000_000_000 + secs * 1_000_000 + micro)::64>>
+  def microtime(ts=<<t::64>>),                           do: ts
+  def microtime(ts) when is_binary(ts),                  do: microtime(ts|>String.to_float|>elem(0))
+  def microtime(ts) when is_integer(ts) and ts < 1.0e10, do: <<(ts * 1_000_000)::64>>
+  def microtime(ts) when is_integer(ts),                 do: <<ts::64>>
+  def microtime(ts) when is_float(ts) and ts < 1.0e10,   do: <<(round(ts*1_000_000))::64>>
+  def microtime(ts) when is_float(ts),                   do: <<(round(ts))::64>>
+end
+
+
+#----------------------- SERVER IMPLEMENTATION ------------------------------------------------------------------------
+
+defmodule TemporalDB.GenServer do
+  use GenServer.Behaviour
+
+  @default_rootdir "/srv/exs/streams"
 
   def init({name,opts}) do
     root_dir = opts |> Dict.get(:data_root_dir, @default_rootdir)
@@ -74,5 +91,16 @@ defmodule TemporalDB do
   end
 
   def handle_call(:info, _from, state), do: {:reply, state, state}
+  def handle_call({:put, ts, record}, _, state) do
+
+    {:reply, :in_progress, state}
+  end
+
+  def handle_call({:stream_from, ts}, _, state) do
+
+    {:reply, :in_progress, state}
+  end
+
+  def handle_call(_,_from,state), do: {:reply, :nyi, state}
 end
 
