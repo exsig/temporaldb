@@ -4,3 +4,5 @@ Mix.start(); Code.require_file("mix.exs",__DIR__); Mix.Task.run("run",[])
 {:ok, db} = TemporalDB.open(:lightning)
 {:ok, st} = db |> TemporalDB.stream_from(:erlang.now())
 IO.inspect st |> TemporalDB.Stream.next
+IO.inspect st |> TemporalDB.Stream.next
+IO.inspect st |> TemporalDB.Stream.next

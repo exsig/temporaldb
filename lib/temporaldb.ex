@@ -89,33 +89,11 @@ defmodule TemporalDB do
     end
 
     def handle_call(:info, _from, state), do: {:reply, state, state}
-    #def handle_call({:stream_from, ts}, _, state=[canonical: _, db: db]), do: {:reply, thestream(db,ts), state}
     def handle_call({:stream_from, ts}, _, state), do: {:reply, :gen_server.start_link(TemporalDB.Stream.GenServer, {ts,state}, []), state}
     def handle_cast({:put, ts, record}, _, [canonical: _, db: db]=state) do
       :ok = :hanoidb.put(db, ts, term_to_binary(record))
       {:noreply, state}
     end
-
-
-    # TODO: just return a state and some functions that can act on that state
-
-    #defp thestream(db,ts) do
-    #  Stream.iterate({db,ts,[{1,2},{3,4},{5,6}],nil}, &genresults/1)
-    #  |> Stream.map(fn({_d,_t,_r,v})->v end)
-    #  |> Stream.drop(1)
-    #end
-
-    ##defp genresults({db,ts,[],nil}) do
-    #  # query next several based on ts
-    #  #throw({:stream_lazy,nil})
-    ##end
-
-    #defp genresults({db,ts,[],{_, last_k, last_v}}) do
-    #  # query next several based on last_ts
-    #  {db,ts,[],{:timeout, last_k, last_v}}
-    #end
-
-    #defp genresults({db,ts,[{curr_ts,curr_val}|tail],_last_kv}), do: {db,curr_ts,tail,{:record, curr_ts, curr_val}}
   end
 
   defmodule Stream do
@@ -124,16 +102,16 @@ defmodule TemporalDB do
     defmodule GenServer do
       use Elixir.GenServer.Behaviour
       @historical_at_a_time 10
-      defrecordp :stream_state, db: nil, queue: [], next_ts: <<>>, last_res: nil
+      defrecordp :stream_state, db: nil, queue: [{<<123>>,"test"},{<<124>>,"test2"}], next_ts: <<>>, last_res: nil
       def init({ts,[canonical: _, db: db]}), do: {:ok, stream_state(db: db, next_ts: ts)}
 
       def handle_call({:next, timeout}, _from_, stream_state(queue: []) = state) do
 
-        {:reply, :starting, state}
+        {:reply, :empty, state}
       end
-      def handle_call({:next, timeout}, _from_, state) do
+      def handle_call({:next, timeout}, _from_, stream_state(queue: [curr|tail]) = state) do
 
-        {:reply, :continuing, state}
+        {:reply, curr, stream_state(state, queue: tail)}
       end
     end
   end
