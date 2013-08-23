@@ -127,9 +127,13 @@ defmodule TemporalDB do
       defrecordp :stream_state, db: nil, queue: [], next_ts: <<>>, last_res: nil
       def init({ts,[canonical: _, db: db]}), do: {:ok, stream_state(db: db, next_ts: ts)}
 
+      def handle_call({:next, timeout}, _from_, stream_state(queue: []) = state) do
+
+        {:reply, :starting, state}
+      end
       def handle_call({:next, timeout}, _from_, state) do
 
-        {:reply, :nyi, state}
+        {:reply, :continuing, state}
       end
     end
   end
