@@ -6,7 +6,11 @@ defmodule TemporalDB.Mixfile do
       version: "0.0.1",
       elixir: "~> 0.10.2-dev",
       name: "TemporalDB",
-      deps: deps ]
+      deps: deps,
+      env: [prod: [default_root_dir: "/srv/exs/streams"],
+            test: [default_root_dir: Path.expand(__DIR__) |> Path.join "test"],
+            dev:  [default_root_dir: Path.expand(__DIR__)]]
+    ]
   end
 
   def application, do: []
