@@ -1,6 +1,20 @@
 #!/usr/bin/env elixir
 Mix.start(); Code.require_file("mix.exs",__DIR__); Mix.Task.run("run",[])
-IO.inspect Mix.Project.config
+
+
+defmodule TheModule do
+  defrecordp :r_Unruly, name: "george", age: 123
+
+  def go do
+    a = r_Unruly()
+    IO.inspect a
+  end
+
+end
+
+TheModule.go
+
+
 #{:ok, db} = TemporalDB.open(:lightning)
 #{:ok, st} = db |> TemporalDB.stream_from(:erlang.now())
 #IO.inspect st |> TemporalDB.Stream.next

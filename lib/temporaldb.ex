@@ -91,13 +91,13 @@ defmodule TemporalDB do
   defmodule GenServer do
     use Elixir.GenServer.Behaviour
 
-    defrecordp :tdb_state, hdb: nil, root_dir: nil, name: nil, canonical: nil, opts: [], path: nil
+    defrecordp :tState, hdb: nil, root_dir: nil, name: nil, canonical: nil, opts: [], path: nil
 
     defp data_root_dir([]) do
       case System.get_env("TDB_ROOTDIR") do
         nil ->
           Mix.start()
-          Mix.Project.config|>Dict.get(:default_root_dir,System.cwd)
+          Mix.Project.config[:default_root_dir] || System.cwd
         from_env -> from_env
       end
     end
@@ -116,33 +116,34 @@ defmodule TemporalDB do
                     {:ok, server} -> {:ok, server}
                     {:error, {:already_started, server}} -> {:ok, server}
                   end
-      {:ok, tdb_state(hdb: db, root_dir: root_dir, name: name, canonical: canonical, opts: opts, path: dir)}
+      {:ok, tState(hdb: db, root_dir: root_dir, name: name, canonical: canonical, opts: opts, path: dir)}
     end
 
-    def handle_call(:close, _from, tdb_state(hdb: hdb) = state) do
+    def handle_call(:close, _from, tState(hdb: hdb) = st) do
       if is_pid(hdb) and Process.alive?(hdb) do
         {:links, links} = Process.info(hdb,:links)
         if length(links) <= 3, do: :hanoidb.close(hdb)
       end
-      {:stop, :normal, :ok, state}
+      {:stop, :normal, :ok, st}
     end
 
-    def handle_call(:destroy, _from, state) do
-      res = :hanoidb.destroy(state|>tdb_state(:hdb))
-      File.rm_rf(state|>tdb_state(:path))
-      {:stop, :normal, res, state}
+    def handle_call(:destroy, _from, tState(hdb: hdb, path: path) = st) do
+      res = :hanoidb.destroy(hdb)
+      File.rm_rf(path)
+      :hanoidb.close(hdb)
+      {:stop, :normal, res, st}
     end
 
-    def handle_call(:info, _from, state), do: {:reply, state, state}
+    def handle_call(:info, _from, st), do: {:reply, st, st}
 
-    def handle_call({:stream_from, ts}, _, state) do
+    def handle_call({:stream_from, ts}, _, tState(hdb: hdb) = st) do
       {:reply, :gen_server.start_link(TemporalDB.Stream.GenServer,
-               {ts, state|>tdb_state(:hdb), state|>tdb_state(:opts)}, []), state}
+               {ts, st|>tState(:hdb), st|>tState(:opts)}, []), st}
     end
 
-    def handle_cast({:put, ts, record}, _, tdb_state(hdb: hdb) = state) do
+    def handle_cast({:put, ts, record}, _, tState(hdb: hdb) = st) do
       :ok = :hanoidb.put(hdb, ts, term_to_binary(record))
-      {:noreply, state}
+      {:noreply, st}
     end
   end
 
@@ -152,17 +153,17 @@ defmodule TemporalDB do
     defmodule GenServer do
       use Elixir.GenServer.Behaviour
       @historical_at_a_time 10
-      defrecordp :stream_state, hdb: nil, queue: [{<<123>>,"test"},{<<124>>,"test2"}], next_ts: <<>>, last_res: nil
+      defrecordp :strState, hdb: nil, queue: [{<<123>>,"test"},{<<124>>,"test2"}], next_ts: <<>>, last_res: nil
 
-      def init({ts,hdb,_opts}), do: {:ok, stream_state(hdb: hdb, next_ts: ts)}
+      def init({ts,hdb,_opts}), do: {:ok, strState(hdb: hdb, next_ts: ts)}
 
-      def handle_call({:next, timeout}, _from_, stream_state(queue: []) = state) do
+      def handle_call({:next, timeout}, _from_, strState(queue: []) = st) do
 
-        {:reply, :empty, state}
+        {:reply, :empty, st}
       end
-      def handle_call({:next, timeout}, _from_, stream_state(queue: [curr|tail]) = state) do
+      def handle_call({:next, timeout}, _from_, strState(queue: [curr|tail]) = st) do
 
-        {:reply, curr, stream_state(state, queue: tail)}
+        {:reply, curr, strState(st, queue: tail)}
       end
     end
   end
