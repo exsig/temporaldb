@@ -1,4 +1,12 @@
+
+defrecord TDB, [:srv, :name] do
+  record_type srv: pid, name: String.t | nil
+end
+
+
 defmodule TemporalDB do
+
+
   @moduledoc """
     * Each stream has two channels:
       - data-stream
@@ -29,6 +37,8 @@ defmodule TemporalDB do
       - Backlog on historical feed
       - Seemless transition from historical to live (probably "live" needs to be able to hand out the "last 3 values" or something)
 
+    TODO:
+      - 
   """
 
 
@@ -52,6 +62,7 @@ defmodule TemporalDB do
     :gen_server.start_link(TemporalDB.GenServer, {name, options}, start_opts)
   end
 
+  #@spec close(TDB.t) :: :ok
   def close(srv) do
     try do
         :gen_server.call(srv, :close, :infinity)
@@ -62,6 +73,7 @@ defmodule TemporalDB do
     end
   end
 
+  #@spec destroy(TDB.t) :: :ok | {:error, :noproc}
   def destroy(srv) do
     try do
         :gen_server.call(srv, :destroy, :infinity)
@@ -96,7 +108,7 @@ defmodule TemporalDB do
     defp data_root_dir([]) do
       case System.get_env("TDB_ROOTDIR") do
         nil ->
-          Mix.start()
+          _ = Mix.start()
           Mix.Project.config[:default_root_dir] || System.cwd
         from_env -> from_env
       end

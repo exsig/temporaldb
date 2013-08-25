@@ -23,6 +23,7 @@ defmodule TemporalDBTest do
     tdbloc     = Path.join @tdbroot, "testdb"
     {:ok, tdb} = TemporalDB.open(:testdb, data_root_dir: @tdbroot)
     :ok        = TemporalDB.destroy(tdb)
+    refute       Process.alive?(tdb)
     refute       File.exists?(tdbloc)
   end
 
@@ -30,7 +31,19 @@ defmodule TemporalDBTest do
     {:ok, tdb} = TemporalDB.open(:testdb)
     info       = TemporalDB.info(tdb)
     assert       is_tuple(info)
-    :ok        = TemporalDB.close(tdb)
+    assert :ok = TemporalDB.close(tdb)
+  end
+
+  test "test-env default db location is correct" do
+    tdbloc     = Path.join @tdbroot, "testdb"
+    {:ok, tdb} = TemporalDB.open(:testdb, data_root_dir: @tdbroot)
+    :ok        = TemporalDB.destroy(tdb)
+
+    refute       File.exists?(tdbloc)
+    {:ok, tdb} = TemporalDB.open(:testdb)
+    assert       Process.alive?(tdb)
+    assert       File.exists?(tdbloc)
+    :ok        = TemporalDB.destroy(tdb)
   end
 
   test "saves temporal records" do
@@ -42,20 +55,6 @@ defmodule TemporalDBTest do
 
   test "persists temporal records" do
     assert false
-  end
-
-  test "test-env default db location is correct" do
-    tdbloc     = Path.join @tdbroot, "testdb"
-    {:ok, tdb} = TemporalDB.open(:testdb, data_root_dir: @tdbroot)
-    :ok        = TemporalDB.destroy(tdb)
-    refute       File.exists?(tdbloc)
-
-    {:ok, tdb} = TemporalDB.open(:testdb)
-    assert       Process.alive?(tdb)
-    assert       File.exists?(tdbloc)
-    :ok        = TemporalDB.destroy(tdb)
-    refute       Process.alive?(tdb)
-    refute       File.exists?(tdbloc)
   end
 
 end

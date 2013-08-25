@@ -1,13 +1,18 @@
 #!/usr/bin/env elixir
 Mix.start(); Code.require_file("mix.exs",__DIR__); Mix.Task.run("run",[])
 
+defmodule Tricks do
+  defmacro first ... do
+    {:{},[],[Elixir.Range, first, 1_000]}
+  end
+end
 
 defmodule TheModule do
-  defrecordp :r_Unruly, name: "george", age: 123
-
+  require Tricks
   def go do
-    a = r_Unruly()
-    IO.inspect a
+    IO.inspect 23...
+    #a = r_Unruly()
+    #IO.inspect a
   end
 
 end

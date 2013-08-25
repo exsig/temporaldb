@@ -17,7 +17,8 @@ defmodule TemporalDB.Mixfile do
 
   defp deps do
     [
-      {:hanoidb, github: "josephwecker/hanoidb", branch: "minimal"}
+      {:hanoidb, github: "josephwecker/hanoidb", branch: "minimal"},
+      {:dialyxir, github: "jeremyjh/dialyxir"}
     ]
   end
 end
