@@ -46,15 +46,24 @@ defmodule TemporalDBTest do
     :ok        = TemporalDB.destroy(tdb)
   end
 
-  test "saves temporal records" do
+  test "saves temporal records (sync)" do
     {:ok, tdb} = TemporalDB.open :testdb
-    ts         = :erlang.now()
-    :ok        = tdb |> TemporalDB.put ts, "saved-dat"
-    {:ok,"saved-dat"} = tdb |> TemporalDB.get ts
+    ts         = Time.now()
+    assert     :ok = TemporalDB.put!(tdb, ts, "saved-dat")
+    assert     {:ok,"saved-dat"} = TemporalDB.get(tdb,ts)
   end
 
   test "persists temporal records" do
-    assert false
+    {:ok, tdb} = TemporalDB.open :testdb
+    ts         = Time.now()
+    assert     :ok = TemporalDB.put!(tdb, ts, "saved-dat")
+    :ok        = TemporalDB.close(tdb)
+    {:ok, tdb2}= TemporalDB.open :testdb
+    {:ok, tdb3}= TemporalDB.open :testdb
+    assert     {:ok,"saved-dat"} = TemporalDB.get(tdb2,ts)
+    assert     {:ok,"saved-dat"} = TemporalDB.get(tdb3,ts)
+    :ok        = TemporalDB.close(tdb2)
+    :ok        = TemporalDB.close(tdb3)
   end
 
 end

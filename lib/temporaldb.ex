@@ -84,20 +84,16 @@ defmodule TemporalDB do
     end
   end
 
-  def info(srv),                                 do: :gen_server.call(srv, :info)
-  def put(srv, ts, record) when is_list(record), do: :gen_server.cast(srv, {:put, microtime(ts), record})
-  def stream_from(srv, ts),                      do: :gen_server.call(srv, {:stream_from, microtime(ts)})
+  def info(srv),             do: :gen_server.call(srv, :info)
+
+  def put!(srv, ts, record), do: :gen_server.call(srv, {:put,         Time.microtime64(ts), term_to_binary(record)})
+  def put(srv, ts, record),  do: :gen_server.cast(srv, {:put_async,   Time.microtime64(ts), term_to_binary(record)})
+
+  def get(srv, ts),          do: :gen_server.call(srv, {:get,         Time.microtime64(ts)})
+  def stream_from(srv, ts),  do: :gen_server.call(srv, {:stream_from, Time.microtime64(ts)})
 
 
 
-  @doc "64-bit (native-endian) binary representation of the microtime, from various formats"
-  def microtime({mega, secs, micro}),                    do: <<(mega * 1_000_000_000_000 + secs * 1_000_000 + micro)::64>>
-  def microtime(ts=<<t::64>>),                           do: ts
-  def microtime(ts) when is_binary(ts),                  do: microtime(ts|>String.to_float|>elem(0))
-  def microtime(ts) when is_integer(ts) and ts < 1.0e10, do: <<(ts * 1_000_000)::64>>
-  def microtime(ts) when is_integer(ts),                 do: <<ts::64>>
-  def microtime(ts) when is_float(ts) and ts < 1.0e10,   do: <<(round(ts*1_000_000))::64>>
-  def microtime(ts) when is_float(ts),                   do: <<(round(ts))::64>>
 
   #------------------------ General genserver Implementation -----------------------------------------------------------
   defmodule GenServer do
@@ -147,14 +143,17 @@ defmodule TemporalDB do
     end
 
     def handle_call(:info, _from, st), do: {:reply, st, st}
-
-    def handle_call({:stream_from, ts}, _, tState(hdb: hdb) = st) do
-      {:reply, :gen_server.start_link(TemporalDB.Stream.GenServer,
-               {ts, st|>tState(:hdb), st|>tState(:opts)}, []), st}
+    def handle_call({:put, ts, record},_,tState(hdb: hdb)=st), do: {:reply, :hanoidb.put(hdb, ts, record), st}
+    def handle_call({:stream_from, ts},_,tState(hdb: hdb)=st), do: {:reply,:gen_server.start_link(TemporalDB.Stream.GenServer, {ts,hdb,tState(st,:opts)},[]), st}
+    def handle_call({:get, ts},_,tState(hdb: hdb)=st) do
+      case :hanoidb.get(hdb, ts) do
+        {:ok, btrm} when is_binary(btrm) -> {:reply, {:ok, binary_to_term(btrm)}, st}
+        other ->                            {:reply, other, st}
+      end
     end
 
-    def handle_cast({:put, ts, record}, _, tState(hdb: hdb) = st) do
-      :ok = :hanoidb.put(hdb, ts, term_to_binary(record))
+    def handle_cast({:put_async, ts, record}, _, tState(hdb: hdb) = st) do
+      :ok = :hanoidb.put(hdb, ts, record)
       {:noreply, st}
     end
   end
