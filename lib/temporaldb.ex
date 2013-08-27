@@ -92,7 +92,8 @@ defmodule TemporalDB do
   def get(srv, ts),          do: :gen_server.call(srv, {:get,         Time.microtime64(ts)})
   def stream_from(srv, ts),  do: :gen_server.call(srv, {:stream_from, Time.microtime64(ts)})
 
-
+  def fold(srv, acc0, fun),  do: :gen_server.call(srv, {:fold, acc0, fun})
+  def to_list(srv),          do: :gen_server.call(srv, :to_list)
 
 
   #------------------------ General genserver Implementation -----------------------------------------------------------
@@ -150,6 +151,11 @@ defmodule TemporalDB do
         {:ok, btrm} when is_binary(btrm) -> {:reply, {:ok, binary_to_term(btrm)}, st}
         other ->                            {:reply, other, st}
       end
+    end
+
+    def handle_call({:fold,acc0,fun},_,tState(hdb: hdb)=st), do: {:reply, :hanoidb.fold(hdb, fun, acc0), st}
+    def handle_call(:to_list,_,tState(hdb: hdb)=st) do
+      {:reply, :hanoidb.fold(hdb,fn(k,v,acc)-><<k::64>>=k; [{k,binary_to_term(v)}|acc] end, []) |> :lists.reverse, st}
     end
 
     def handle_cast({:put_async, ts, record}, _, tState(hdb: hdb) = st) do

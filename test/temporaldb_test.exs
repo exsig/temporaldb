@@ -66,4 +66,50 @@ defmodule TemporalDBTest do
     :ok        = TemporalDB.close(tdb3)
   end
 
+  test "replace record" do
+    assert false
+  end
+
+  test "remove record" do
+    assert false
+  end
+
+  test "blocking fold over all members" do
+    assert false
+  end
+
+  test "records stored in correct order" do
+    keys = 1..200 |>
+      Enum.map fn(_)->
+        v=:crypto.rand_bytes(8)
+        <<n::64>> = v
+        n
+      end
+    {:ok, tdb} = TemporalDB.open :testdb
+
+    Enum.each keys, fn(k) ->
+      :ok = TemporalDB.put!(tdb, k, :crypto.rand_bytes(:random.uniform(50)))
+    end
+    keys_out = TemporalDB.to_list(tdb) |> Enum.map(fn({k,v}) -> k end)
+    assert keys_out = keys |> Enum.sort
+    :ok        = TemporalDB.destroy(tdb)
+  end
+
+  test "stream from table" do
+    assert false
+  end
+
+  test "stream from table with simulation base-time" do
+    assert false
+  end
+
+  test "stream with live-feed" do
+    assert false
+  end
+
+  test "stream with transition from simulated to live-feed" do
+    assert false
+  end
+
+
 end
