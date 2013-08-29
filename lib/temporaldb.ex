@@ -170,17 +170,34 @@ defmodule TemporalDB do
     defmodule GenServer do
       use Elixir.GenServer.Behaviour
       @historical_at_a_time 10
-      defrecordp :strState, hdb: nil, queue: [{<<123>>,"test"},{<<124>>,"test2"}], next_ts: <<>>, last_res: nil
+      defrecordp :strState, hdb: nil, queue: [], next_ts: <<>>, last_res: nil
 
       def init({ts,hdb,_opts}), do: {:ok, strState(hdb: hdb, next_ts: ts)}
 
-      def handle_call({:next, timeout}, _from_, strState(queue: []) = st) do
-
-        {:reply, :empty, st}
+      def handle_call({:next, timeout}, from, strState(hdb: hdb, queue: [], next_ts: ts) = st) do
+        {ts, queue} = next_n(hdb, ts, 100)
+        if queue == [] do
+          {ts, queue} = next_n(hdb, ts, 9) # Fewer in the request has chance to pick up fresher data
+          if queue == [] do
+            # TODO: receive messages as appropriate to try to get the next one
+            {:reply, :empty, st}
+          else
+            handle_call({:next, timeout}, from, strState(st, queue: queue, next_ts: ts))
+          end
+        else
+          handle_call({:next, timeout}, from, strState(st, queue: queue, next_ts: ts))
+        end
       end
-      def handle_call({:next, timeout}, _from_, strState(queue: [curr|tail]) = st) do
 
-        {:reply, curr, strState(st, queue: tail)}
+      def handle_call({:next, _timeout}, _from, strState(queue: [curr|tail]) = st), do: {:reply, curr, strState(st, queue: tail)}
+
+      defp next_n(hdb, gt_ts, n) do
+        res = :hanoidb.fold_range(hdb, fn(k,v,acc)->[{k,binary_to_term(v)}|acc] end, [],
+          {:key_range, gt_ts, false, :undefined, false, n})
+        case res do
+          [{k,_v}|_] -> {k, res |> Enum.reduce [], fn({k2,v},acc)-><<k3::64>>=k2; [{k3,v}|acc] end}
+          [] -> {gt_ts, []}
+        end
       end
     end
   end
