@@ -40,6 +40,8 @@ defmodule Time do
   end
 
   @doc "64-bit (native-endian) binary representation of the microtime, from various formats"
+  def microtime(year,month,day,hour),                    do: microtime({{year,month,day},{hour,0,0}})
+  def microtime({year,month,day,hour}),                  do: microtime({{year,month,day},{hour,0,0}})
   def microtime(dt = {{_,_,_},{_,_,_}}),                 do: microtime(datetime_to_timestamp(dt))
   def microtime({mega, secs, micro}),                    do: mega * 1_000_000_000_000 + secs * 1_000_000 + micro
   def microtime(<<ts::64>>),                             do: ts
